@@ -44,7 +44,7 @@ export default function ChatPage() {
         id: (Date.now() + 1).toString(),
         sessionId: "current",
         role: "assistant",
-        content: `เกิดข้อผิดพลาด: ${err.message || "ไม่สามารถเชื่อมต่อ API ได้"}`,
+        content: `เกิดข้อผิดพลาด: ${(err as Error).message || "ไม่สามารถเชื่อมต่อ API ได้"}`,
       };
       setMessages((prev) => [...prev, aiMessage]);
     } finally {

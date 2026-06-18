@@ -1,6 +1,6 @@
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 
-export default function AI GroupLayout({
+export default function AIGroupLayout({
   children,
 }: {
   children: React.ReactNode;
