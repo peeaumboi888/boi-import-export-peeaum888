@@ -1,0 +1,327 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  name           String
+  passwordHash   String
+  role           String    @default("user")
+  organization   String?
+  position       String?
+  phone          String?
+  avatarUrl      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  boiApplications    BOIApplication[]
+  ieTransactions     IETransaction[]
+  documents          Document[]
+  chatSessions       ChatSession[]
+  auditLogs          AuditLog[]
+}
+
+model BOIPrivilegeCategory {
+  id          String                  @id @default(uuid())
+  name        String
+  nameTh      String
+  description String?
+  parentId    String?
+  parent      BOIPrivilegeCategory?   @relation("CategoryParent", fields: [parentId], references: [id])
+  children    BOIPrivilegeCategory[]  @relation("CategoryParent")
+  privileges  BOIPrivilege[]
+  createdAt   DateTime                @default(now())
+}
+
+model BOIPrivilege {
+  id              String                @id @default(uuid())
+  categoryId      String
+  category        BOIPrivilegeCategory  @relation(fields: [categoryId], references: [id])
+  code            String                @unique
+  name            String
+  nameTh          String
+  description     String?
+  legalReference  String?
+  conditions      String?
+  benefits        String?
+  validFrom       DateTime?
+  validUntil      DateTime?
+  isActive        Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  applications    BOIApplicationPrivilege[]
+}
+
+model BOIApplication {
+  id                  String                    @id @default(uuid())
+  userId              String
+  user                User                      @relation(fields: [userId], references: [id])
+  companyName         String
+  projectName         String
+  activityType        String?
+  investmentAmount    Float?
+  status              String                    @default("pending")
+  submissionDate      DateTime?
+  approvalDate        DateTime?
+  certificateNumber   String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  privileges          BOIApplicationPrivilege[]
+  ieTransactions      IETransaction[]
+  materials           Material[]
+}
+
+model BOIApplicationPrivilege {
+  id              String          @id @default(uuid())
+  applicationId   String
+  application     BOIApplication  @relation(fields: [applicationId], references: [id])
+  privilegeId     String
+  privilege       BOIPrivilege    @relation(fields: [privilegeId], references: [id])
+  createdAt       DateTime        @default(now())
+
+  @@unique([applicationId, privilegeId])
+}
+
+model IETransaction {
+  id                  String        @id @default(uuid())
+  userId              String
+  user                User          @relation(fields: [userId], references: [id])
+  transactionType     String
+  boiApplicationId    String?
+  boiApplication      BOIApplication? @relation(fields: [boiApplicationId], references: [id])
+  invoiceNumber       String?
+  invoiceDate         DateTime?
+  totalValue          Float
+  currency            String        @default("THB")
+  status              String        @default("pending")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  items               IEItem[]
+  customsDeclarations CustomsDeclaration[]
+}
+
+model IEItem {
+  id                String        @id @default(uuid())
+  transactionId     String
+  transaction       IETransaction @relation(fields: [transactionId], references: [id])
+  productName       String?
+  hsCode            String?
+  quantity          Float
+  unit              String?
+  unitPrice         Float
+  totalPrice        Float
+  countryOfOrigin   String?
+  materialType      String?
+  rmtsId            String?
+  createdAt         DateTime      @default(now())
+}
+
+model Material {
+  id                  String              @id @default(uuid())
+  boiApplicationId    String
+  boiApplication      BOIApplication      @relation(fields: [boiApplicationId], references: [id])
+  materialCode        String?
+  materialName        String
+  hsCode              String?
+  materialType        String?
+  unit                String?
+  bomQuantity         Float?
+  yieldRate           Float?
+  scrapRate           Float?
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  movements           MaterialMovement[]
+  balances            MaterialBalance[]
+}
+
+model MaterialMovement {
+  id                String          @id @default(uuid())
+  materialId        String
+  material          Material        @relation(fields: [materialId], references: [id])
+  movementType      String
+  quantity          Float
+  referenceNumber   String?
+  documentDate      DateTime?
+  remarks           String?
+  createdAt         DateTime        @default(now())
+}
+
+model MaterialBalance {
+  id                    String    @id @default(uuid())
+  materialId            String
+  material              Material  @relation(fields: [materialId], references: [id])
+  period                DateTime
+  openingBalance        Float     @default(0)
+  importQuantity        Float     @default(0)
+  consumptionQuantity   Float     @default(0)
+  scrapQuantity         Float     @default(0)
+  wasteQuantity         Float     @default(0)
+  saleQuantity          Float     @default(0)
+  transferQuantity      Float     @default(0)
+  closingBalance        Float     @default(0)
+  createdAt             DateTime  @default(now())
+
+  @@unique([materialId, period])
+}
+
+model HSCode {
+  id                String    @id @default(uuid())
+  code              String
+  description       String
+  descriptionTh     String?
+  unit              String?
+  dutyRate          Float?
+  isRestricted      Boolean   @default(false)
+  requiresLicense   Boolean   @default(false)
+  parentCode        String?
+  createdAt         DateTime  @default(now())
+
+  customsDeclarations CustomsDeclaration[]
+}
+
+model FTAAgreement {
+  id                String    @id @default(uuid())
+  name              String
+  code              String    @unique
+  partnerCountries  String
+  effectiveDate     DateTime?
+  status            String
+  documentUrl       String?
+  createdAt         DateTime  @default(now())
+
+  rulesOfOrigin     RuleOfOrigin[]
+  customsDeclarations CustomsDeclaration[]
+}
+
+model RuleOfOrigin {
+  id                String    @id @default(uuid())
+  ftaId             String
+  fta               FTAAgreement @relation(fields: [ftaId], references: [id])
+  hsCode            String?
+  ruleType          String
+  ruleDescription   String
+  minimumPercentage Float?
+  createdAt         DateTime  @default(now())
+}
+
+model CustomsDeclaration {
+  id                String          @id @default(uuid())
+  userId            String
+  transactionId     String
+  transaction       IETransaction   @relation(fields: [transactionId], references: [id])
+  hsCodeId          String?
+  hsCode            HSCode?         @relation(fields: [hsCodeId], references: [id])
+  ftaId             String?
+  fta               FTAAgreement?   @relation(fields: [ftaId], references: [id])
+  declarationNumber String
+  declarationDate   DateTime
+  customsOffice     String
+  totalDuty         Float
+  totalVat          Float
+  ftaApplied        Boolean         @default(false)
+  status            String
+  createdAt         DateTime        @default(now())
+}
+
+model Law {
+  id              String        @id @default(uuid())
+  title           String
+  titleTh         String?
+  lawType         String
+  category        String
+  effectiveDate   DateTime?
+  status          String        @default("active")
+  fullText        String?
+  summary         String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  sections        LawSection[]
+}
+
+model LawSection {
+  id                String    @id @default(uuid())
+  lawId             String
+  law               Law       @relation(fields: [lawId], references: [id])
+  sectionNumber     String
+  title             String?
+  content           String
+  parentSectionId   String?
+  parentSection     LawSection? @relation("SectionParent", fields: [parentSectionId], references: [id])
+  childSections     LawSection[] @relation("SectionParent")
+  createdAt         DateTime  @default(now())
+}
+
+model Document {
+  id              String          @id @default(uuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  title           String
+  fileName        String
+  fileType        String
+  fileSize        Int
+  fileUrl         String
+  category        String?
+  tags            String?
+  metadata        String?
+  processed       Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  chunks          DocumentChunk[]
+}
+
+model DocumentChunk {
+  id              String    @id @default(uuid())
+  documentId      String
+  document        Document  @relation(fields: [documentId], references: [id])
+  content         String
+  metadata        String?
+  createdAt       DateTime  @default(now())
+}
+
+model ChatSession {
+  id              String          @id @default(uuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  agentType       String
+  title           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  messages        ChatMessage[]
+}
+
+model ChatMessage {
+  id              String      @id @default(uuid())
+  sessionId       String
+  session         ChatSession @relation(fields: [sessionId], references: [id])
+  role            String
+  content         String
+  sources         String?
+  createdAt       DateTime    @default(now())
+}
+
+model AuditLog {
+  id              String    @id @default(uuid())
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+  action          String
+  entityType      String
+  entityId        String?
+  oldValue        String?
+  newValue        String?
+  ipAddress       String?
+  createdAt       DateTime  @default(now())
+}
